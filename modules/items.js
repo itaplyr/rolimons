@@ -1,14 +1,14 @@
 const req = require("./request.js")
 const cheerio = require('cheerio')
 
-const endpoint = "https://api.rolimons.com/items/v1/itemdetails"
+const endpoint = "https://api.rolimons.com/items/v2/itemdetails"
 const uaidurl = "https://www.rolimons.com/uaid/"
 
 
 var Cached = {
     Status: false,
     Data: undefined
-}; 
+};
 
 
 const dict = [
@@ -71,62 +71,67 @@ async function searchItem(mode, info) {
     if (mode == 'name') {
         var newi = info
         if (newi.length <= 6) {
-            newi = newi.toUpperCase() 
+            newi = newi.toUpperCase()
         } else {
             newi = info
         }
         try {
-        await getItems().then( 
-            async function(data) {
-                let parsed = [data]
-                let found = find(parsed, newi)
-                // Basic (Names & Values)
-                found.name = found[0]
-                found.acronym = found[1]
-                found.rap = found[2]
-                found.value = found[3]
-                found.default_value = found[4]
-                // Filtered by dictionary above
-                found.demand = dict[0][found[5]]
-                found.trend = dict[1][found[6]]
-                found.projected = dict[2][found[7]]
-                found.hyped = dict[2][found[8]]
-                found.rare = dict[2][found[9]]
-                result = found
-            }
-        )
-        return result
-    } catch {
-        return false
-    }
+            await getItems().then(
+                async function (data) {
+                    let parsed = [data]
+                    let found = find(parsed, newi)
+                    // Basic (Names & Values)
+                    found.name = found[0]
+                    found.acronym = found[1]
+                    found.rap = found[2]
+                    found.value = found[3]
+                    found.default_value = found[4]
+                    // Filtered by dictionary above
+                    found.demand = dict[0][found[5]]
+                    found.trend = dict[1][found[6]]
+                    found.projected = dict[2][found[7]]
+                    found.hyped = dict[2][found[8]]
+                    found.rare = dict[2][found[9]]
+
+                    if (found.value == -1) { found.value = found.rap }
+
+                    result = found
+                }
+            )
+            return result
+        } catch {
+            return false
+        }
     }
     if (mode == 'id') {
         try {
-        await getItems().then(
-            async function(data) {
-                const found = data['items'][info]
-                found.name = found[0]
-                found.acronym = found[1]
-                found.rap = found[2]
-                found.value = found[3]
-                found.default_value = found[4]
-                // Filtered by dictionary above
-                found.demand = dict[0][found[5]]
-                found.trend = dict[1][found[6]]
-                found.projected = dict[2][found[7]]
-                found.hyped = dict[2][found[8]]
-                found.rare = dict[2][found[9]]
-                result = found
-            }
-        )
-        return result
-    } catch {
-        return false
-    }
+            await getItems().then(
+                async function (data) {
+                    const found = data['items'][info]
+                    found.name = found[0]
+                    found.acronym = found[1]
+                    found.rap = found[2]
+                    found.value = found[3]
+                    found.default_value = found[4]
+                    // Filtered by dictionary above
+                    found.demand = dict[0][found[5]]
+                    found.trend = dict[1][found[6]]
+                    found.projected = dict[2][found[7]]
+                    found.hyped = dict[2][found[8]]
+                    found.rare = dict[2][found[9]]
+
+                    if (found.value == -1) { found.value = found.rap }
+                    result = found
+                }
+            )
+            return result
+        } catch {
+            return false
+        }
     }
 }
 
-  
+
 
 async function getUAID(UAID, users) {
     let data = []
@@ -168,7 +173,7 @@ async function getUAID(UAID, users) {
 
 
 
-module.exports = { 
+module.exports = {
     getItems,
     clear_cache,
     searchItem,

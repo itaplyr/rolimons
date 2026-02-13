@@ -4,14 +4,12 @@
 </p>
 
 # Rolimons
-- A High-level API Wrapper for Rolimons
-
-# Docs are available [here](https://shiawase.gitbook.io/rolimons-api-wrapper-docs/)
-- If you want to contribute to docs [here](https://app.gitbook.com/invite/T0ZEwIdQo6bvNx27b3IB/cQ8kSe0SIXzmoVb0zsx0)
+- An updated version of a Eolimons api wrapper
+- This project was made by @itaplyr (forked from [Shiawaseu](https://github.com/Shiawaseu/rolimons), huge thanks!) for a service available through our [Discord Server](https://discord.gg/a9CHhuKS9m), or our [Website](https://rolitools.site).
 
 ## Installation
 ```
-npm install rolimons
+npm install git+https://github.com/itaplyr/rolimons
 ```
 
 ## Example usage
@@ -26,7 +24,7 @@ rolimons.items.searchItem("name", "SSHF").then(
 ```
 
 ## Covered endpoints
-- Items (**+ Caching**) & UAID tracking
+- V2 Items (**+ Caching**) & UAID tracking
 - Market Activity (trade ads)
 - Groups
 - Games
