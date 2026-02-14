@@ -83,7 +83,7 @@ function find(itemdata, filter) {
 }
 
 async function extractAllCopiesData(html) {
-    const marker = "all_copies_data";
+    const marker = "bc_copies_data";
     const start = html.indexOf(marker);
     if (start === -1) return null;
 
@@ -139,7 +139,7 @@ async function fetchItemDetails(itemId) {
             throw new Error('Could not extract serial data from HTML');
         }
         //console.log(allCopiesData.uaids)
-        const { owner_names = [], quantities = [], updated, uaids, serials } = allCopiesData;
+        const { owner_names = [], quantities = [], updated, bc_uaids, bc_serials } = allCopiesData;
 
         if (!Array.isArray(owner_names) || !Array.isArray(quantities)) {
             throw new Error('Invalid data format');
@@ -150,8 +150,8 @@ async function fetchItemDetails(itemId) {
             quantities,
             item_id: itemId,
             updated_at: updated ?? Date.now(),
-            uaid: uaids,
-            serials: serials
+            uaid: bc_uaids,
+            serials: bc_serials
         };
 
     } catch (error) {
@@ -301,7 +301,7 @@ function getSnapshotBefore(unix) {
 
 
 async function analyzeTradeFromUAID(UAID) {
-    const uaidData = await getUAID(UAID, 20);
+    const uaidData = await getUAID(UAID, 2);
 
     const validOwners = uaidData.history
         .filter(h => h.id !== undefined)
