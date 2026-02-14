@@ -133,12 +133,12 @@ async function fetchItemDetails(itemId) {
         }
 
         const html = response.data;
-        const allCopiesData = extractAllCopiesData(html);
+        const allCopiesData = await extractAllCopiesData(html);
 
         if (!allCopiesData) {
             throw new Error('Could not extract serial data from HTML');
         }
-
+        //console.log(allCopiesData.uaids)
         const { owner_names = [], quantities = [], updated, uaids, serials } = allCopiesData;
 
         if (!Array.isArray(owner_names) || !Array.isArray(quantities)) {
