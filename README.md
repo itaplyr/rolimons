@@ -4,7 +4,7 @@
 </p>
 
 # Rolimons
-- An updated version of a Eolimons api wrapper
+- An updated version of a Rolimons api wrapper
 - This project was made by @itaplyr (forked from [Shiawaseu](https://github.com/Shiawaseu/rolimons), huge thanks!) for a service available through our [Discord Server](https://discord.gg/a9CHhuKS9m), or our [Website](https://rolitools.site).
 
 ## Installation
