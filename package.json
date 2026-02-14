@@ -1,7 +1,8 @@
 {
   "dependencies": {
     "axios": "^1.4.0",
-    "cheerio": "^1.0.0-rc.12"
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer": "^24.37.3"
   },
   "name": "rolimons",
   "version": "1.1.0",

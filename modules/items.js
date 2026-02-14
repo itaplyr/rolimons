@@ -1,8 +1,13 @@
+const { default: axios } = require("axios");
 const req = require("./request.js")
 const cheerio = require('cheerio')
+const puppeteer = require("puppeteer");
+const { getPlayerInventory, getPlayerInventoryWithTimestamp } = require("./players.js");
+const fs = require("fs");
 
 const endpoint = "https://api.rolimons.com/items/v2/itemdetails"
 const uaidurl = "https://www.rolimons.com/uaid/"
+var browser = undefined
 
 
 var Cached = {
@@ -32,6 +37,17 @@ const dict = [
         "-1": false
     }
 ]
+
+async function InitBrowser() {
+    const newBrowser = await puppeteer.launch({
+        headless: false,
+        devtools: true,
+        args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    browser = newBrowser
+    return browser
+}
 
 
 async function getItems() {
@@ -66,6 +82,48 @@ function find(itemdata, filter) {
     return found;
 }
 
+async function fetchItemDetails(itemId) {
+    try {
+        const response = await axios.get(`https://www.rolimons.com/item/${itemId}`, {
+            headers: {
+                "User-Agent": this.userAgent,
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout: 10000,
+            validateStatus: (s) => s >= 200 && s < 500,
+        });
+
+        if (response.status !== 200) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const html = response.data;
+        const allCopiesData = this.extractAllCopiesData(html);
+
+        if (!allCopiesData) {
+            throw new Error('Could not extract serial data from HTML');
+        }
+
+        const { owner_names = [], quantities = [], updated, uaids, serials } = allCopiesData;
+
+        if (!Array.isArray(owner_names) || !Array.isArray(quantities)) {
+            throw new Error('Invalid data format');
+        }
+
+        return {
+            owner_names,
+            quantities,
+            item_id: itemId,
+            updated_at: updated ?? Date.now(),
+            uaid: uaids,
+            serials: serials
+        };
+
+    } catch (error) {
+        console.error(`[SerialSniper] Error fetching item ${itemId}:`, error.message);
+        return null;
+    }
+}
 
 async function searchItem(mode, info) {
     if (mode == 'name') {
@@ -80,13 +138,11 @@ async function searchItem(mode, info) {
                 async function (data) {
                     let parsed = [data]
                     let found = find(parsed, newi)
-                    // Basic (Names & Values)
                     found.name = found[0]
                     found.acronym = found[1]
                     found.rap = found[2]
                     found.value = found[3]
                     found.default_value = found[4]
-                    // Filtered by dictionary above
                     found.demand = dict[0][found[5]]
                     found.trend = dict[1][found[6]]
                     found.projected = dict[2][found[7]]
@@ -113,7 +169,6 @@ async function searchItem(mode, info) {
                     found.rap = found[2]
                     found.value = found[3]
                     found.default_value = found[4]
-                    // Filtered by dictionary above
                     found.demand = dict[0][found[5]]
                     found.trend = dict[1][found[6]]
                     found.projected = dict[2][found[7]]
@@ -133,43 +188,169 @@ async function searchItem(mode, info) {
 
 
 
-async function getUAID(UAID, users) {
-    let data = []
-    data['history'] = []
-    const response = await req.request(uaidurl + UAID)
-    const parsed = cheerio.load(response['data'])
-    let count = 1
-    data['item_name'] = parsed('#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div:nth-child(1) > div.d-flex.mt-0.mt-md-4 > div.mx-2.mt-2.pt-0.pt-md-1.text-truncate > h5').text()
-    data['last_owner'] = parsed('#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div:nth-child(1) > div:nth-child(2) > div.mx-2.mt-2.pt-1 > h5').text()
-    data['serial'] = parsed('#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div.mt-0.mt-sm-1.stat_pane_stat_column.d-block.d-sm-none.d-md-block > div.d-flex.mt-0.mt-sm-4 > div.mx-2.mt-2.pt-0.pt-md-1 > h5').text()
-    data['owned_since'] = parsed('#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div:nth-child(1) > div:nth-child(3) > div.mx-2.mt-2.pt-1 > h5').text()
-    data['created'] = parsed('#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div.mt-0.mt-sm-1.stat_pane_stat_column.d-block.d-sm-none.d-md-block > div:nth-child(2) > div.mx-2.mt-2.pt-1 > h5').text()
-    data['uuid_discovered'] = parsed("#page_content_body > div.container-fluid.mt-2.px-0 > div > div.col-12.col-sm-6.col-md-7.col-lg-8.col-xl-9.bg-primary.px-0.pb-3.pb-sm-0 > div.d-flex.justify-content-around > div.mt-0.mt-sm-1.stat_pane_stat_column.d-block.d-sm-none.d-md-block > div:nth-child(3) > div.mx-2.mt-2.pt-1 > h5").text()
-    parsed('#page_content_body > div.mx-0.mx-sm-3').each((i, e) => {
-        for (let x = 0; x < users; x++) {
-            var id
-            var name
-            var plr = parsed(e).find(`div:nth-child(${count}) > div > div:nth-child(1) > div.mt-2.mb-1.text-center.text-truncate > a`)
-            try {
-                name = plr.text();
-                id = parseInt(plr.attr('href').replace('/player/', ''))
-            } catch (e) {
-                name = "Hidden/Deleted";
-                id = undefined
-            }
-            var updated_since = parsed(e).find(`div:nth-child(${count}) > div > div.mt-4.pt-2 > h5`).text()
-            var updated_date = parsed(e).find(`div:nth-child(${count}) > div > div.mt-4.pt-2 > p.mb-0.text-center.small.text-muted`).text()
-            data['history'].push({
-                id,
-                name,
-                updated_since,
-                updated_date
-            })
-            count = count + 1
-        }
-    })
-    return data
+async function getUAID(UAID, users = 10) {
+    if (!browser) {
+        await InitBrowser()
+    }
+
+    const page = await browser.newPage();
+
+    await page.setUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    );
+
+    await page.goto(`https://www.rolimons.com/uaid/${UAID}`, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000
+    });
+
+    const html = await page.content();
+    page.close()
+
+    const $ = cheerio.load(html);
+
+    const data = {
+        item_name: $("h5").eq(0).text().trim(),
+        last_owner: $("h5").eq(1).text().trim(),
+        serial: $("h5").eq(2).text().trim(),
+        owned_since: $("h5").eq(3).text().trim(),
+        created: $("h5").eq(4).text().trim(),
+        uuid_discovered: $("h5").eq(5).text().trim(),
+        history: []
+    };
+
+    const historyEntries = [];
+
+    $(".mx-0.mx-sm-3 > div").each((i, el) => {
+
+        const playerLink = $(el).find("a[href^='/player/']");
+        const name = playerLink.text().trim() || "Hidden/Deleted";
+        const id = playerLink.attr("href")
+            ? parseInt(playerLink.attr("href").replace("/player/", ""))
+            : undefined;
+
+        const updated_since = $(el).find("h5").text().trim();
+        const updated_date = $(el).find("p.small").text().trim();
+
+        if (!updated_date) return;
+
+        historyEntries.push({
+            id,
+            name,
+            updated_since,
+            updated_date,
+            timestamp: new Date(updated_date).getTime()
+        });
+    });
+
+    historyEntries
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, users)
+        .forEach(entry => {
+            delete entry.timestamp;
+            data.history.push(entry);
+        });
+
+
+
+    return data;
 }
+
+function toUnixSeconds(dateString) {
+    return Math.floor(new Date(dateString).getTime() / 1000);
+}
+
+function getSnapshotBefore(unix) {
+    return Math.floor(unix / 86400) * 86400 - 86400;
+}
+
+
+async function analyzeTradeFromUAID(UAID) {
+    const uaidData = await getUAID(UAID, 20);
+
+    const validOwners = uaidData.history
+        .filter(h => h.id !== undefined)
+        .sort((a, b) => new Date(b.updated_date) - new Date(a.updated_date))
+        .slice(0, 2);
+
+    if (validOwners.length < 2) {
+        throw new Error("Not enough ownership history");
+    }
+
+    const currentOwner = validOwners[0];
+    const previousOwner = validOwners[1];
+
+    const changeTimestamp = toUnixSeconds(currentOwner.updated_date);
+
+    const snapshotBefore = getSnapshotBefore(changeTimestamp);
+
+    const snapshotAfterCandidate = snapshotBefore + 86400;
+    const nowUnix = Math.floor(Date.now() / 1000);
+    const snapshotAfter = toUnixSeconds(currentOwner.updated_date);
+
+    const sellerBefore = await getPlayerInventoryWithTimestamp(previousOwner.id, snapshotBefore);
+    const sellerAfter = await getPlayerInventory(previousOwner.id);
+
+    const ownerBefore = await getPlayerInventoryWithTimestamp(currentOwner.id, snapshotBefore);
+    const ownerAfter = await getPlayerInventory(currentOwner.id);
+
+    const result = diffInventories(sellerBefore, sellerAfter, ownerBefore, ownerAfter);
+
+    return {
+        result,
+        sellerBefore,
+        sellerAfter,
+        ownerBefore,
+        ownerAfter,
+        seller: previousOwner,
+        buyer: currentOwner
+    };
+}
+
+
+function diffInventories(sellerBefore, sellerAfter, ownerBefore, ownerAfter) {
+    const offerItems = [];
+    const requestedItems = [];
+
+    const getUAIDs = arr => (arr || []).map(e => Array.isArray(e) ? e[0] : e);
+
+    for (const itemId in sellerBefore) {
+        const sellerUAIDsBefore = getUAIDs(sellerBefore[itemId]);
+        const sellerUAIDsAfter = getUAIDs(sellerAfter[itemId]);
+
+        for (const uaid of sellerUAIDsBefore) {
+            if (!sellerUAIDsAfter.includes(uaid)) {
+                for (const buyerItemId in ownerAfter) {
+                    const ownerUAIDsAfter = getUAIDs(ownerAfter[buyerItemId]);
+                    if (ownerUAIDsAfter.includes(uaid)) {
+                        offerItems.push({ itemId: Number(itemId), uaid });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    for (const itemId in sellerAfter) {
+        const sellerUAIDsBefore = getUAIDs(sellerBefore[itemId]);
+        const sellerUAIDsAfter = getUAIDs(sellerAfter[itemId]);
+
+        for (const uaid of sellerUAIDsAfter) {
+            if (!sellerUAIDsBefore.includes(uaid)) {
+                for (const buyerItemId in ownerBefore) {
+                    const ownerUAIDsBefore = getUAIDs(ownerBefore[buyerItemId]);
+                    if (ownerUAIDsBefore.includes(uaid)) {
+                        requestedItems.push({ itemId: Number(itemId), uaid });
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return { offerItems, requestedItems };
+}
+
 
 
 
@@ -177,5 +358,9 @@ module.exports = {
     getItems,
     clear_cache,
     searchItem,
-    getUAID
+    getUAID,
+    InitBrowser,
+    analyzeTradeFromUAID,
+    diffInventories,
+    fetchItemDetails
 }

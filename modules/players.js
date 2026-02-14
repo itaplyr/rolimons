@@ -4,10 +4,40 @@ const cheerio = require('cheerio')
 const website = "https://rolimons.com"
 const leaderboard = website + "/leaderboard/"
 const playerapi = "https://api.rolimons.com/players/v1/playerinfo/"
+const playerinventory = "https://api.rolimons.com/players/v1/playerassets/"
 
 async function getPlayer(userID) {
     let player = await req.request(playerapi + userID)
     return player['data']
+}
+
+async function getPlayerInventory(userID) {
+    let player = await req.request(playerinventory + userID)
+    return player['data']['playerAssets']
+}
+
+async function getPlayerInventoryWithTimestamp(userID, timestamp) {
+    const data = await req.request(`https://www.rolimons.com/history/${userID}?timestamp=${timestamp}`)
+    const $ = cheerio.load(data.data);
+
+    let playerAssets = null;
+
+    $("script").each((i, el) => {
+        const scriptContent = $(el).html();
+
+        if (scriptContent && scriptContent.includes("var player_assets")) {
+
+            const match = scriptContent.match(
+                /var player_assets\s*=\s*(\{[\s\S]*?\});/
+            );
+
+            if (match && match[1]) {
+                playerAssets = JSON.parse(match[1]);
+            }
+        }
+    });
+
+    return playerAssets;
 }
 
 async function getLeaderboard(page) {
@@ -42,5 +72,7 @@ async function getLeaderboard(page) {
 
 module.exports = {
     getPlayer,
+    getPlayerInventory,
+    getPlayerInventoryWithTimestamp,
     getLeaderboard
 }

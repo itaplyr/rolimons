@@ -1,19 +1,15 @@
 const axios = require('axios');
 
-async function request(...args) {
-    let config = {
-        headers: args[1] 
+async function request(url, headers = {}) {
+    try {
+        const response = await axios.get(url, { headers });
+        return response;
+    } catch (error) {
+        console.error("Request failed:", error.response?.status, error.response?.statusText);
+        throw error;
     }
-    await axios.get(args[0], config) 
-        .then(async function(res) {
-            response = res
-        })
-        .catch(function(error) {
-            console.log(error)
-        })
-    return response
 }
 
-module.exports = { 
+module.exports = {
     request
-}
+};
