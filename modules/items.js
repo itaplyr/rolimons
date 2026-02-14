@@ -82,11 +82,46 @@ function find(itemdata, filter) {
     return found;
 }
 
+async function extractAllCopiesData(html) {
+    const marker = "all_copies_data";
+    const start = html.indexOf(marker);
+    if (start === -1) return null;
+
+    let i = html.indexOf("{", start);
+    if (i === -1) return null;
+
+    let depth = 0;
+    let end = -1;
+
+    for (; i < html.length; i++) {
+        if (html[i] === "{") depth++;
+        else if (html[i] === "}") depth--;
+        if (depth === 0) {
+            end = i;
+            break;
+        }
+    }
+
+    if (end === -1) return null;
+
+    let jsObjectText = html.slice(html.indexOf("{", start), end + 1);
+    const jsonText = jsObjectText.replace(
+        /([,{]\s*)([a-zA-Z_]\w*)\s*:/g,
+        '$1"$2":'
+    );
+
+    try {
+        return JSON.parse(jsonText);
+    } catch {
+        return null;
+    }
+}
+
 async function fetchItemDetails(itemId) {
     try {
         const response = await axios.get(`https://www.rolimons.com/item/${itemId}`, {
             headers: {
-                "User-Agent": this.userAgent,
+                "User-Agent": 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 "Accept-Language": "en-US,en;q=0.9",
             },
             timeout: 10000,
@@ -98,7 +133,7 @@ async function fetchItemDetails(itemId) {
         }
 
         const html = response.data;
-        const allCopiesData = this.extractAllCopiesData(html);
+        const allCopiesData = extractAllCopiesData(html);
 
         if (!allCopiesData) {
             throw new Error('Could not extract serial data from HTML');
