@@ -40,7 +40,7 @@ const dict = [
 
 async function InitBrowser() {
     const newBrowser = await puppeteer.launch({
-        headless: false,
+        headless: 'new',
         devtools: true,
         args: ["--no-sandbox", "--disable-setuid-sandbox"]
     });
@@ -139,7 +139,7 @@ async function fetchItemDetails(itemId) {
             throw new Error('Could not extract serial data from HTML');
         }
         //console.log(allCopiesData.uaids)
-        const { owner_names = [], quantities = [], updated, bc_uaids, bc_serials } = allCopiesData;
+        const { owner_names = [], quantities = [], bc_updated, bc_uaids, bc_serials } = allCopiesData;
 
         if (!Array.isArray(owner_names) || !Array.isArray(quantities)) {
             throw new Error('Invalid data format');
@@ -149,7 +149,7 @@ async function fetchItemDetails(itemId) {
             owner_names,
             quantities,
             item_id: itemId,
-            updated_at: updated ?? Date.now(),
+            bc_updated: bc_updated,
             uaid: bc_uaids,
             serials: bc_serials
         };
@@ -347,7 +347,12 @@ function diffInventories(sellerBefore, sellerAfter, ownerBefore, ownerAfter) {
     const offerItems = [];
     const requestedItems = [];
 
-    const getUAIDs = arr => (arr || []).map(e => Array.isArray(e) ? e[0] : e);
+    // More defensive getUAIDs function - handles non-array inputs
+    const getUAIDs = arr => {
+        if (!arr) return [];
+        if (!Array.isArray(arr)) return [];
+        return arr.map(e => Array.isArray(e) ? e[0] : e);
+    };
 
     for (const itemId in sellerBefore) {
         const sellerUAIDsBefore = getUAIDs(sellerBefore[itemId]);
