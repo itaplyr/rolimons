@@ -315,19 +315,25 @@ async function analyzeTradeFromUAID(UAID) {
     const currentOwner = validOwners[0];
     const previousOwner = validOwners[1];
 
-    const changeTimestamp = toUnixSeconds(currentOwner.updated_date);
-
-    const snapshotBefore = getSnapshotBefore(changeTimestamp);
-
-    const snapshotAfterCandidate = snapshotBefore + 86400;
+    const tradeTimestamp = toUnixSeconds(currentOwner.updated_date);
     const nowUnix = Math.floor(Date.now() / 1000);
-    const snapshotAfter = toUnixSeconds(currentOwner.updated_date);
+
+    const snapshotBefore = getSnapshotBefore(tradeTimestamp);
+
+    const snapshotAfterCandidate = getSnapshotBefore(nowUnix);
+
+    const useSnapshotAfter = snapshotAfterCandidate > tradeTimestamp;
 
     const sellerBefore = await getPlayerInventoryWithTimestamp(previousOwner.id, snapshotBefore);
-    const sellerAfter = await getPlayerInventory(previousOwner.id);
-
     const ownerBefore = await getPlayerInventoryWithTimestamp(currentOwner.id, snapshotBefore);
-    const ownerAfter = await getPlayerInventory(currentOwner.id);
+
+    const sellerAfter = useSnapshotAfter
+        ? await getPlayerInventoryWithTimestamp(previousOwner.id, snapshotAfterCandidate)
+        : await getPlayerInventory(previousOwner.id);
+
+    const ownerAfter = useSnapshotAfter
+        ? await getPlayerInventoryWithTimestamp(currentOwner.id, snapshotAfterCandidate)
+        : await getPlayerInventory(currentOwner.id);
 
     const result = diffInventories(sellerBefore, sellerAfter, ownerBefore, ownerAfter);
 
